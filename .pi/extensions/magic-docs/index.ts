@@ -1,11 +1,11 @@
-import type { ExtensionAPI, ToolDefinition } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI, ResourceLoader, ToolDefinition } from "@mariozechner/pi-coding-agent";
 import {
 	AuthStorage,
-	DefaultResourceLoader,
 	ModelRegistry,
 	SessionManager,
 	SettingsManager,
 	createAgentSession,
+	createExtensionRuntime,
 } from "@mariozechner/pi-coding-agent";
 import { getModel } from "@mariozechner/pi-ai";
 import { Type } from "@sinclair/typebox";
@@ -82,13 +82,18 @@ async function checkWithHaiku(
 			},
 		};
 
-		const loader = new DefaultResourceLoader({
-			systemPromptOverride: () =>
+		const resourceLoader: ResourceLoader = {
+			getExtensions: () => ({ extensions: [], errors: [], runtime: createExtensionRuntime() }),
+			getSkills: () => ({ skills: [], diagnostics: [] }),
+			getPrompts: () => ({ prompts: [], diagnostics: [] }),
+			getThemes: () => ({ themes: [], diagnostics: [] }),
+			getAgentsFiles: () => ({ agentsFiles: [] }),
+			getSystemPrompt: () =>
 				"You decide whether documentation needs updating. You MUST call the report_decision tool. Do not write text responses.",
-			cwd: "/tmp/pi-magic-docs-check",
-			agentDir: "/tmp/pi-magic-docs-check",
-		});
-		await loader.reload();
+			getAppendSystemPrompt: () => [],
+			extendResources: () => {},
+			reload: async () => {},
+		};
 
 		const { session } = await createAgentSession({
 			model,
@@ -97,7 +102,7 @@ async function checkWithHaiku(
 			modelRegistry,
 			sessionManager: SessionManager.inMemory(),
 			settingsManager: SettingsManager.inMemory({ compaction: { enabled: false } }),
-			resourceLoader: loader,
+			resourceLoader,
 			customTools: [reportTool],
 			tools: [],
 		});
