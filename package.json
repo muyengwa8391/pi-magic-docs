@@ -1,14 +1,18 @@
 {
   "name": "pi-magic-docs",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Living documents that update themselves from your conversation — pi reads them, tracks them, and keeps them current",
-  "keywords": ["pi-package"],
+  "keywords": [
+    "pi-package"
+  ],
   "peerDependencies": {
     "@mariozechner/pi-coding-agent": "*",
     "@sinclair/typebox": "*"
   },
   "pi": {
-    "extensions": [".pi/extensions/magic-docs"]
+    "extensions": [
+      ".pi/extensions/magic-docs"
+    ]
   },
   "author": "michaelliv",
   "license": "MIT"
