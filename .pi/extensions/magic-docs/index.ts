@@ -1,4 +1,13 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import {
+	AuthStorage,
+	ModelRegistry,
+	SessionManager,
+	createAgentSession,
+	serializeConversation,
+	convertToLlm,
+} from "@mariozechner/pi-coding-agent";
+import { getModel } from "@mariozechner/pi-ai";
 import * as fs from "node:fs";
 
 const MAGIC_HEADER = /^# MAGIC DOC:/;
@@ -22,6 +31,79 @@ function parseHeader(content: string): { title: string; instruction?: string } |
 		next?.startsWith("*") && next.endsWith("*") ? next.slice(1, -1).trim() : undefined;
 
 	return { title, instruction };
+}
+
+function buildUpdateMessage(docs: TrackedDoc[]): string {
+	const list = docs
+		.map((d) => {
+			let s = `- \`${d.path}\` — "${d.title}"`;
+			if (d.instruction) s += ` (focus: ${d.instruction})`;
+			return s;
+		})
+		.join("\n");
+
+	return (
+		`Update ${docs.length} magic doc(s):\n\n${list}\n\n` +
+		`Re-read each, edit in-place with anything new from our conversation. ` +
+		`Be terse, high signal only. Document architecture and WHY things exist. ` +
+		`Never duplicate what's obvious from code. Delete outdated sections. ` +
+		`Never append "Previously..." or "Updated to..." notes. ` +
+		`Fix typos and broken formatting. If nothing meaningful changed, skip silently.`
+	);
+}
+
+async function checkWithHaiku(
+	docs: TrackedDoc[],
+	recentMessages: any[],
+): Promise<boolean> {
+	const model = getModel("anthropic", "claude-haiku-4-5");
+	if (!model) return true; // fallback: always update
+
+	try {
+		const authStorage = AuthStorage.create();
+		const modelRegistry = ModelRegistry.create(authStorage);
+
+		const { session } = await createAgentSession({
+			model,
+			thinkingLevel: "off",
+			authStorage,
+			modelRegistry,
+			sessionManager: SessionManager.inMemory(),
+			tools: [],
+		});
+
+		let output = "";
+		session.subscribe((event) => {
+			if (
+				event.type === "message_update" &&
+				event.assistantMessageEvent.type === "text_delta"
+			) {
+				output += event.assistantMessageEvent.delta;
+			}
+		});
+
+		const docList = docs.map((d) => `- "${d.title}" (${d.path})`).join("\n");
+		const conversationText = serializeConversation(convertToLlm(recentMessages));
+
+		await session.prompt(
+			`You decide whether living documentation files need updating based on a conversation.\n\n` +
+				`Tracked docs:\n${docList}\n\n` +
+				`Recent conversation:\n${conversationText}\n\n` +
+				`Does this conversation contain new information (decisions, architecture changes, new features, ` +
+				`corrections) that would meaningfully improve these docs? ` +
+				`Ignore small talk, questions with no answers, or conversations unrelated to the docs.\n\n` +
+				`Reply with JSON only, no other text: {"should_update": true, "reason": "..."} or {"should_update": false, "reason": "..."}`,
+		);
+
+		session.dispose();
+
+		const match = output.match(/\{[\s\S]*?\}/);
+		if (!match) return true;
+		const json = JSON.parse(match[0]);
+		return json.should_update !== false;
+	} catch {
+		return true; // fallback on any error
+	}
 }
 
 export default function (pi: ExtensionAPI) {
@@ -72,7 +154,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// Fire update after N consecutive idle agent runs
-	pi.on("agent_end", async () => {
+	pi.on("agent_end", async (_event, ctx) => {
 		if (tracked.size === 0) return;
 
 		if (agentRunHadToolCalls) {
@@ -94,25 +176,26 @@ export default function (pi: ExtensionAPI) {
 		}
 		if (tracked.size === 0) return;
 
+		// Get recent conversation messages for Haiku to evaluate
+		const recentMessages = ctx.sessionManager
+			.getBranch()
+			.filter((e) => e.type === "message")
+			.map((e) => (e as any).message)
+			.slice(-30);
+
 		const docs = Array.from(tracked.values());
-		const list = docs
-			.map((d) => {
-				let s = `- \`${d.path}\` — "${d.title}"`;
-				if (d.instruction) s += ` (focus: ${d.instruction})`;
-				return s;
-			})
-			.join("\n");
+		const shouldUpdate = await checkWithHaiku(docs, recentMessages);
+
+		if (!shouldUpdate) {
+			consecutiveIdleRuns = 0;
+			lastUpdateTime = Date.now();
+			return;
+		}
 
 		pi.sendMessage(
 			{
 				customType: "magic-docs-update",
-				content:
-					`Update ${docs.length} magic doc(s):\n\n${list}\n\n` +
-					`Re-read each, edit in-place with anything new from our conversation. ` +
-					`Be terse, high signal only. Document architecture and WHY things exist. ` +
-					`Never duplicate what's obvious from code. Delete outdated sections. ` +
-					`Never append "Previously..." or "Updated to..." notes. ` +
-					`Fix typos and broken formatting. If nothing meaningful changed, skip silently.`,
+				content: buildUpdateMessage(docs),
 				display: true,
 			},
 			{ triggerTurn: true },
@@ -154,24 +237,11 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			const docs = Array.from(tracked.values());
-			const list = docs
-				.map((d) => {
-					let s = `- \`${d.path}\` — "${d.title}"`;
-					if (d.instruction) s += ` (focus: ${d.instruction})`;
-					return s;
-				})
-				.join("\n");
 
 			pi.sendMessage(
 				{
 					customType: "magic-docs-update",
-					content:
-						`Update ${docs.length} magic doc(s):\n\n${list}\n\n` +
-						`Re-read each, edit in-place with anything new from our conversation. ` +
-						`Be terse, high signal only. Document architecture and WHY things exist. ` +
-						`Never duplicate what's obvious from code. Delete outdated sections. ` +
-						`Never append "Previously..." or "Updated to..." notes. ` +
-						`Fix typos and broken formatting. If nothing meaningful changed, skip silently.`,
+					content: buildUpdateMessage(docs),
 					display: true,
 				},
 				{ triggerTurn: true },
