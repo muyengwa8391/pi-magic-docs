@@ -22,7 +22,7 @@ Good fits:
 - entry-point maps for large codebases
 - docs that should explain **why** things exist, not mirror the code
 
-When pi sees a magic doc, it starts tracking it for the session. After the conversation goes idle, the extension injects a follow-up message (via `sendMessage` with `customType: "magic-docs-update"`) telling the agent to re-read the doc and update it in place.
+When pi sees a magic doc, it starts tracking it for the session. After the conversation goes idle, Haiku reviews the recent conversation and decides whether the docs actually need updating. If yes, it pushes a message into chat telling the agent to update. You see everything — nothing happens behind your back.
 
 ## Magic doc format
 
@@ -43,11 +43,12 @@ Rules:
 
 1. pi reads, edits, or writes a magic doc
 2. the extension starts tracking that file for the current session
-3. after **2 consecutive idle agent runs** (no tool calls in either), the extension injects an update prompt
-4. the agent re-reads the tracked docs and updates them in place if anything meaningful changed
-5. a 5-minute cooldown prevents rapid-fire reminders
+3. after **2 consecutive idle agent runs** (no tool calls in either), Haiku checks the recent conversation
+4. if Haiku decides the conversation has relevant new info, it pushes a visible update message into chat
+5. the agent re-reads the tracked docs and updates them in place
+6. a 5-minute cooldown prevents rapid-fire reminders
 
-This keeps docs aligned with the actual conversation, not just the current file contents.
+Haiku acts as a gate — no silent background agents, no surprise edits. If there's nothing worth updating, it skips quietly.
 
 ## Update behavior
 
