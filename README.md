@@ -4,7 +4,7 @@ Living documents that update themselves from your conversation.
 
 ## How it works
 
-Create a file with this header:
+Start a file with this header (must be the first non-empty line):
 
 ```markdown
 # MAGIC DOC: Auth System Design
@@ -13,7 +13,9 @@ Create a file with this header:
 
 The title after `# MAGIC DOC:` is required. The italicized instruction line is optional — it tells the agent what to focus on when updating.
 
-When the agent reads a magic doc during a session, it starts tracking it. After every idle stretch (2+ turns), a follow-up message asks the agent to re-read and update the doc with anything new from the conversation.
+When the agent reads, edits, or writes a magic doc during a session, it starts tracking it. After an idle stretch (2+ turns), if any tracked doc was modified on disk since last seen, a follow-up message asks the agent to re-read and update those docs with anything new from the conversation.
+
+A 2-minute cooldown prevents rapid-fire updates when multiple edits happen in quick succession.
 
 Updates are:
 - **Terse** — high signal only
