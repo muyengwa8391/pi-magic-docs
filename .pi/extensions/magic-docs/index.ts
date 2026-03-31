@@ -6,8 +6,6 @@ import {
 	SessionManager,
 	SettingsManager,
 	createAgentSession,
-	serializeConversation,
-	convertToLlm,
 } from "@mariozechner/pi-coding-agent";
 import { getModel } from "@mariozechner/pi-ai";
 import { Type } from "@sinclair/typebox";
@@ -57,7 +55,7 @@ function buildUpdateMessage(docs: TrackedDoc[]): string {
 
 async function checkWithHaiku(
 	docs: TrackedDoc[],
-	recentMessages: any[],
+	recentMessages: any[], // AgentMessage[]
 ): Promise<{ shouldUpdate: boolean; reason: string }> {
 	const model = getModel("anthropic", "claude-haiku-4-5");
 	if (!model) return { shouldUpdate: true, reason: "model not found" };
@@ -102,15 +100,16 @@ async function checkWithHaiku(
 			tools: [],
 		});
 
+		// Inject the actual conversation messages
+		session.agent.replaceMessages(recentMessages);
+
 		const docList = docs.map((d) => `- "${d.title}" (${d.path})`).join("\n");
-		const conversationText = serializeConversation(convertToLlm(recentMessages));
 
 		await session.prompt(
-			`Tracked docs:\n${docList}\n\n` +
-				`Recent conversation:\n${conversationText}\n\n` +
-				`Does this conversation contain new information (decisions, architecture changes, new features, ` +
-				`corrections) that would meaningfully improve these docs? ` +
-				`Ignore small talk, questions with no answers, or conversations unrelated to the docs.`,
+			`Based on the conversation above, do these docs need updating?\n\n` +
+				`Tracked docs:\n${docList}\n\n` +
+				`Update if there are new decisions, architecture changes, features, or corrections. ` +
+				`Skip for small talk, unrelated topics, or no new information.`,
 		);
 
 		session.dispose();
