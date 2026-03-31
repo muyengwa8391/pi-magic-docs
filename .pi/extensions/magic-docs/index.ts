@@ -204,7 +204,8 @@ export default function (pi: ExtensionAPI) {
 			.slice(-30);
 
 		const docs = Array.from(tracked.values());
-		const { shouldUpdate } = await checkWithHaiku(docs, recentMessages);
+		const { shouldUpdate, reason } = await checkWithHaiku(docs, recentMessages);
+		ctx.ui.notify(`Magic docs check: ${shouldUpdate ? "updating" : "skipped"} — ${reason}`, shouldUpdate ? "info" : "info");
 
 		if (!shouldUpdate) {
 			consecutiveIdleRuns = 0;
@@ -246,30 +247,6 @@ export default function (pi: ExtensionAPI) {
 		if (tracked.size > 0) {
 			ctx.ui.notify(`Tracking ${tracked.size} magic doc(s)`, "info");
 		}
-	});
-
-	pi.registerCommand("magic-docs-check", {
-		description: "Run the Haiku check and show whether magic docs should be updated",
-		handler: async (_args, ctx) => {
-			if (tracked.size === 0) {
-				ctx.ui.notify("No magic docs tracked in this session", "info");
-				return;
-			}
-
-			const docs = Array.from(tracked.values());
-			const recentMessages = ctx.sessionManager
-				.getBranch()
-				.filter((e) => e.type === "message")
-				.map((e) => (e as any).message)
-				.slice(-30);
-
-			ctx.ui.notify("Running Haiku check...", "info");
-			const { shouldUpdate, reason } = await checkWithHaiku(docs, recentMessages);
-			ctx.ui.notify(
-				`should_update: ${shouldUpdate} — ${reason}`,
-				shouldUpdate ? "success" : "info",
-			);
-		},
 	});
 
 	// Inject tracking info into system prompt
